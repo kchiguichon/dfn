@@ -32,7 +32,7 @@ python -m spacy download en_core_web_sm
 
 6. Download glove wordvectors:
 ```
-./download_glove.sh
+./util/download_glove.sh
 ```
 
 
