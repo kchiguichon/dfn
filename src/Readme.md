@@ -25,14 +25,9 @@ conda activate nlp-project
 pip install -r requirements.txt
 ```
 
-5. Download spacy model
+5. Download glove wordvectors:
 ```
-python -m spacy download en_core_web_sm
-```
-
-6. Download glove wordvectors:
-```
-./util/download_glove.sh
+./src/util/download_glove.sh
 ```
 
 
