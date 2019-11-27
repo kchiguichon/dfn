@@ -11,7 +11,41 @@ def load_data(train_path, dev_path):
         'dev' : pd.read_csv(open(dev_path, 'r'), quotechar='"')
     }
 
-def process_data(df, vocab_size=10000, max_tokens=200, max_token_size=40):
+def process_data(dataframe : pd.DataFrame, vocab_size : int = 10_000, 
+    max_tokens : int = 200, max_token_size : int = 40) -> (Tensor, Tensor, dict, dict):
+    """
+    Will take a dataframe read from ``load_data`` and return indexed data, labels, and vocabulary tables
+    for that dataset.
+
+    Parameters
+    ---------- 
+    dataframe : ``pd.DataFrame``
+        A pandas dataframe containing data to be processed, and from which to build vocabulary.
+
+    vocab_size : ``int``
+        Maximum size of vocabulary (including padding and unknown tokens).
+
+    max_tokens : ``int``
+        Maximum number of tokens (aka. words) per sequence. Sequences will be padded to max_tokens if
+        their length is less than ``max_tokens``.
+
+    max_token_size : ``int``
+        Maximum size of an individual token (i.e. how many characters in a token/word).
+
+    Returns:
+    --------
+    data : ``Tensor``
+        Tensor containing indexed sequences of tokens.
+
+    labels : ``Tensor``
+        Tensor containing label for each sequence in ``data``.
+
+    vocab : ``dict``
+        Dictionary mapping tokens to indices.
+
+    reverse_vocab : ``dict``
+        Dictionary mapping indices to tokens.
+    """
     def _process_data_helper(text):
         # Tokenize text data
         tokens = re.findall(r'\w+|[^\w\s]', re.sub(r'[|]{3}', '', text.strip().lower()))[:max_tokens]
@@ -19,8 +53,8 @@ def process_data(df, vocab_size=10000, max_tokens=200, max_token_size=40):
         tokens += [PAD_TOKEN] * (max_tokens - len(tokens))
         return np.asarray(tokens).astype('<U{}'.format(max_token_size))
     # Tokenize data and labels
-    data = tf.convert_to_tensor(df['Text'].apply(_process_data_helper))
-    labels = tf.convert_to_tensor(df['Answer'].apply(lambda x: np.array(re.sub(r'\s+', '_', x))))
+    data = tf.convert_to_tensor(dataframe['Text'].apply(_process_data_helper))
+    labels = tf.convert_to_tensor(dataframe['Answer'].apply(lambda x: np.array(re.sub(r'\s+', '_', x))))
     # Build vocab
     counts = np.unique(data, return_counts=True)
     counts = [x[counts[0] != PAD_TOKEN.encode('utf8')] for x in counts]
@@ -45,9 +79,7 @@ def train(*args, **kwargs):
     pass
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="""
-        Script to train model on data.
-    """)
+    parser = argparse.ArgumentParser(description="""Script to train model on data.""")
 
     parser.add_argument('--train', help='Path to train data.', default='.\\data\\train.csv')
     parser.add_argument('--dev', help='Path to dev data.', default='.\\data\\dev.csv')
