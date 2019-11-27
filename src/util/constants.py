@@ -1,0 +1,2 @@
+UNK_TOKEN = "@UNK@"
+PAD_TOKEN = "@PAD@"

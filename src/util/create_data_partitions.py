@@ -25,8 +25,8 @@ if __name__ == "__main__":
         A simple program to partition the data received from QANTA dataset in csv format. 
     """)
 
-    parser.add_argument('--questions_path', help='Path to questions.csv file.')
-    parser.add_argument('--save_directory', help='Save directory to place partitions in.')
+    parser.add_argument('--questions-path', help='Path to questions.csv file.')
+    parser.add_argument('--save-directory', help='Save directory to place partitions in.')
     args = parser.parse_args()
 
     data = read_data(args.questions_path)

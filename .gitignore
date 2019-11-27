@@ -3,3 +3,4 @@ question_data/
 diagrams/
 nlp_project_proposal*
 *.tar.gz
+**_pycache__/
