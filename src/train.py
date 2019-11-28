@@ -213,17 +213,19 @@ def train(model: models.Model,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="""Script to train model on data.""")
-    parser.add_argument('--train', help='Path to train data.', default='.\\data\\train.csv')
-    parser.add_argument('--dev', help='Path to dev data.', default='.\\data\\dev.csv')
-    parser.add_argument('--labels', help='Path to label dictionary.', default='.\\data\\answers.json')
-    parser.add_argument('--embeddings', help='Path to embeddings', default='.\\data\\glove.6B\\glove.6B.50d.txt')
+    parser.add_argument('--train', help='Path to train data.', default=r'./data/train.csv')
+    parser.add_argument('--dev', help='Path to dev data.', default=r'./data/dev.csv')
+    parser.add_argument('--labels', help='Path to label dictionary.', default=r'./data/answers.json')
+    parser.add_argument('--model', help='Model to use for QA task.', choices=('DAN', 'DFN', 'GRU'), type=str.upper, default='DAN')
+    parser.add_argument('--embeddings', help='Path to embeddings', default=r'./data/glove.6B/glove.6B.50d.txt')
     parser.add_argument('--embed-dim', help='Size of embeddings', type=int, default=50)
     parser.add_argument('--batch-size', help='Size of training batches.', type=int, default=32)
     parser.add_argument('--vocab-size', help='Size of vocabulary to use.', type=int, default=15_000)
     parser.add_argument('--sequence-length', help='Maximum size of sequences to use.', type=int, default=200)
     parser.add_argument('--num-epochs', help='Number of epochs.', type=int, default=10)
     parser.add_argument('--num-layers', help='Number of layers.', type=int, default=4)
-    parser.add_argument('--hidden-dim', help='Size of hidden representation vector.', type=int, default=150)
+    parser.add_argument('--hidden-dim', help='Size of hidden representation vector.', type=int, default=-1)
+
     args = parser.parse_args()
     data = load_data(args.train, args.dev, args.labels)
     train_data = data['train']
@@ -246,12 +248,20 @@ if __name__ == "__main__":
         'embedding_dim': args.embed_dim, 
         'output_dim': len(LABEL_TO_ID), 
         'num_layers': args.num_layers, 
-        'hidden_dim' : args.hidden_dim,
         'dropout': 0.2,
         'trainable_embeddings': True
     }
 
-    model = DFN(**model_config)
+    if args.model == 'DAN':
+        model_config['hidden_dim'] = args.embed_dim if args.hidden_dim == -1 else args.hidden_dim
+        model = DAN(**model_config)
+    elif args.model == 'DFN':
+        model_config['hidden_dim'] = args.embed_dim + (args.sequence_length>>1) if args.hidden_dim == -1 else args.hidden_dim
+        model = DFN(**model_config)
+    else:
+        model_config['hidden_dim'] = args.embed_dim if args.hidden_dim == -1 else args.hidden_dim
+        model = GRU(**model_config)
     model.embeddings.assign(load_glove_embeddings(args.embeddings, args.embed_dim, reverse_vocab))
 
-    train(model, optimizer, train_batches, validation_batches, args.num_epochs)
+    train_result = train(model, optimizer, train_batches, validation_batches, args.num_epochs)
+    model, metrics = train['model'], train['metrics']

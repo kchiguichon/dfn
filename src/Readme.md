@@ -48,7 +48,10 @@ TODO: Explain train and predict scripts.
 
 #### Train a model
 
-TODO: Explain how to train model.
+An example command to start training the model.
+```
+python ./src/train.py --train ./data/train.csv --dev ./data/dev.csv --labels ./data/answers.json --model dan --embeddings ./data/glove.6B/glove.6B.50d.txt --embed-dim 50 --num-layers 4
+```
 
 #### Predict with model
 
