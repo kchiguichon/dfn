@@ -264,4 +264,4 @@ if __name__ == "__main__":
     model.embeddings.assign(load_glove_embeddings(args.embeddings, args.embed_dim, reverse_vocab))
 
     train_result = train(model, optimizer, train_batches, validation_batches, args.num_epochs)
-    model, metrics = train['model'], train['metrics']
+    model, metrics = train_result['model'], train_result['metrics']
