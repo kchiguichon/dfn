@@ -162,7 +162,7 @@ def train(model: models.Model,
         for index, (batch_inputs, batch_labels) in enumerate(generator_tqdm):
             with tf.GradientTape() as tape:
                 logits = model(batch_inputs, training=True)
-                loss_value = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(tf.one_hot(batch_labels, len(LABEL_TO_ID)), logits))
+                loss_value = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(batch_labels, logits))
                 regularization = regularization_lambda * tf.reduce_sum([tf.nn.l2_loss(x) for x in model.weights])
                 grads = tape.gradient(loss_value, model.trainable_variables)
             optimizer.apply_gradients(zip(grads, model.trainable_variables))
@@ -181,7 +181,7 @@ def train(model: models.Model,
         generator_tqdm = tqdm(validation_batches)
         for index, (batch_inputs, batch_labels) in enumerate(generator_tqdm):
             logits = model(batch_inputs, training=False)
-            loss_value = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(tf.one_hot(batch_labels, len(LABEL_TO_ID)), logits))
+            loss_value = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(batch_labels, logits))
             total_validation_loss += loss_value
             batch_predictions = tf.math.argmax(tf.nn.softmax(logits, axis=-1), axis=-1)
             total_correct_predictions += tf.math.reduce_sum(tf.cast(batch_predictions == batch_labels, dtype=tf.int64))
@@ -219,7 +219,7 @@ if __name__ == "__main__":
     parser.add_argument('--embeddings', help='Path to embeddings', default='.\\data\\glove.6B\\glove.6B.50d.txt')
     parser.add_argument('--embed-dim', help='Size of embeddings', type=int, default=50)
     parser.add_argument('--batch-size', help='Size of training batches.', type=int, default=32)
-    parser.add_argument('--vocab-size', help='Size of vocabulary to use.', type=int, default=10000)
+    parser.add_argument('--vocab-size', help='Size of vocabulary to use.', type=int, default=10_000)
     parser.add_argument('--sequence-length', help='Maximum size of sequences to use.', type=int, default=200)
     parser.add_argument('--num-epochs', help='Number of epochs.', type=int, default=10)
     parser.add_argument('--num-layers', help='Number of layers.', type=int, default=4)
