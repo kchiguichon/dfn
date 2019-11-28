@@ -10,7 +10,8 @@ class DAN(models.Model):
                  vocab_size: int, 
                  embedding_dim: int, 
                  output_dim: int, 
-                 num_layers: int, 
+                 num_layers: int,
+                 hidden_dim: int, 
                  dropout: float = 0.2,
                  trainable_embeddings: bool = True):
         super(DAN, self).__init__()
@@ -19,7 +20,7 @@ class DAN(models.Model):
         self.embeddings = tf.Variable(tf.random.normal([vocab_size, embedding_dim]), trainable=trainable_embeddings)
         for i in range(self.num_layers):
             name = 'dense' + str(i+1)
-            setattr(self, name, layers.Dense(embedding_dim, activation='tanh', name=name))
+            setattr(self, name, layers.Dense(hidden_dim, activation='tanh', name=name))
         self.classifier = layers.Dense(output_dim)
 
     def call(self, batch_data: tf.Tensor, training=False) -> tf.Tensor:
@@ -53,7 +54,8 @@ class DFN(models.Model):
                  vocab_size: int, 
                  embedding_dim: int, 
                  output_dim: int, 
-                 num_layers: int, 
+                 num_layers: int,
+                 hidden_dim: int, 
                  dropout: float = 0.2,
                  trainable_embeddings: bool = True):
         super(DFN, self).__init__()
@@ -67,7 +69,7 @@ class DFN(models.Model):
         self.embeddings = tf.Variable(tf.random.normal([vocab_size, embedding_dim]), trainable=trainable_embeddings)
         for i in range(self.num_layers):
             name = 'dense' + str(i+1)
-            setattr(self, name, layers.Dense(embedding_dim*3, activation='swish', name=name))
+            setattr(self, name, layers.Dense(hidden_dim, activation='swish', name=name))
         self.classifier = layers.Dense(output_dim)
 
     def call(self, batch_data: tf.Tensor, training=False) -> tf.Tensor:
@@ -98,7 +100,8 @@ class GRU(models.Model):
                  vocab_size: int, 
                  embedding_dim: int, 
                  output_dim: int, 
-                 num_layers: int, 
+                 num_layers: int,
+                 hidden_dim:int, 
                  dropout: float = 0.2,
                  trainable_embeddings: bool = True):
         super(GRU, self).__init__()
@@ -107,9 +110,9 @@ class GRU(models.Model):
         for i in range(self.num_layers):
             name = 'gru' + str(i+1)
             if i < num_layers -1:
-                setattr(self, name, layers.GRU(embedding_dim, activation='tanh', return_sequences=True, name=name))
+                setattr(self, name, layers.GRU(hidden_dim, activation='tanh', return_sequences=True, name=name))
             else:
-                setattr(self, name, layers.GRU(embedding_dim, activation='tanh', name=name))
+                setattr(self, name, layers.GRU(hidden_dim, activation='tanh', name=name))
         self.classifier = layers.Dense(output_dim)
 
     def call(self, batch_data: tf.Tensor, training=False) -> tf.Tensor:

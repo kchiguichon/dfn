@@ -219,10 +219,11 @@ if __name__ == "__main__":
     parser.add_argument('--embeddings', help='Path to embeddings', default='.\\data\\glove.6B\\glove.6B.50d.txt')
     parser.add_argument('--embed-dim', help='Size of embeddings', type=int, default=50)
     parser.add_argument('--batch-size', help='Size of training batches.', type=int, default=32)
-    parser.add_argument('--vocab-size', help='Size of vocabulary to use.', type=int, default=10_000)
+    parser.add_argument('--vocab-size', help='Size of vocabulary to use.', type=int, default=15_000)
     parser.add_argument('--sequence-length', help='Maximum size of sequences to use.', type=int, default=200)
     parser.add_argument('--num-epochs', help='Number of epochs.', type=int, default=10)
     parser.add_argument('--num-layers', help='Number of layers.', type=int, default=4)
+    parser.add_argument('--hidden-dim', help='Size of hidden representation vector.', type=int, default=150)
     args = parser.parse_args()
     data = load_data(args.train, args.dev, args.labels)
     train_data = data['train']
@@ -245,6 +246,7 @@ if __name__ == "__main__":
         'embedding_dim': args.embed_dim, 
         'output_dim': len(LABEL_TO_ID), 
         'num_layers': args.num_layers, 
+        'hidden_dim' : args.hidden_dim,
         'dropout': 0.2,
         'trainable_embeddings': True
     }
