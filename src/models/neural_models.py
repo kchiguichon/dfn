@@ -67,7 +67,7 @@ class DFN(models.Model):
         self.embeddings = tf.Variable(tf.random.normal([vocab_size, embedding_dim]), trainable=trainable_embeddings)
         for i in range(self.num_layers):
             name = 'dense' + str(i+1)
-            setattr(self, name, layers.Dense(embedding_dim*3, activation=swish, name=name))
+            setattr(self, name, layers.Dense(embedding_dim*3, activation='swish', name=name))
         self.classifier = layers.Dense(output_dim)
 
     def call(self, batch_data: tf.Tensor, training=False) -> tf.Tensor:
