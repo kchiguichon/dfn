@@ -59,15 +59,24 @@ class DFN(models.Model):
         super(DFN, self).__init__()
         self.num_layers = num_layers
         self.dropout_prob = dropout
+
+        def swish(inputs):
+            return inputs * tf.math.sigmoid(0.7 * inputs)
+        tf.keras.utils.get_custom_objects().update({'swish' : layers.Activation(swish)})
+
         self.embeddings = tf.Variable(tf.random.normal([vocab_size, embedding_dim]), trainable=trainable_embeddings)
         for i in range(self.num_layers):
             name = 'dense' + str(i+1)
-            setattr(self, name, layers.Dense(embedding_dim*3, activation='tanh', name=name))
+            setattr(self, name, layers.Dense(embedding_dim*3, activation=swish, name=name))
         self.classifier = layers.Dense(output_dim)
 
     def call(self, batch_data: tf.Tensor, training=False) -> tf.Tensor:
         sequence_mask = tf.cast(tf.expand_dims(batch_data != 0, [-1]), dtype=tf.float32)
         logits = tf.nn.embedding_lookup(self.embeddings, batch_data) * sequence_mask
+
+        if training:
+            dropout_mask = tf.cast(tf.random.uniform(batch_data.get_shape()) >= self.dropout_prob, dtype=tf.float32)
+            logits *= tf.expand_dims(dropout_mask, -1)
 
         x = tf.signal.rfft(logits)
         y = tf.transpose(x, [0, 2, 1])
