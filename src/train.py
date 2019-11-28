@@ -10,7 +10,7 @@ from tensorflow.keras import models, optimizers
 from typing import List, Dict
 
 from util.constants import PAD_TOKEN, UNK_TOKEN
-from models.neural_models import DAN
+from models.neural_models import DAN, DFN, GRU
 
 LABEL_TO_ID = dict()
 ID_TO_LABEL = dict()
@@ -192,10 +192,11 @@ def train(model: models.Model,
         average_validation_loss = total_validation_loss / len(validation_batches)
         validation_accuracy = total_correct_predictions/total_predictions
 
-        if serialization_dir is not None and validation_accuracy > best_epoch_validation_accuracy:
-            print("Model with best validation accuracy so far: %.2f. Saving the model."
-                  % (validation_accuracy))
-            model.save_weights(os.path.join(serialization_dir, f'model.ckpt'))
+        if validation_accuracy > best_epoch_validation_accuracy:
+            if serialization_dir is not None:
+                print("Model with best validation accuracy so far: %.2f. Saving the model."
+                    % (validation_accuracy))
+                model.save_weights(os.path.join(serialization_dir, f'model.ckpt'))
             best_epoch_validation_loss = average_validation_loss
             best_epoch_validation_accuracy = validation_accuracy
 
