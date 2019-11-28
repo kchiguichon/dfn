@@ -70,8 +70,11 @@ def process_data(dataframe : pd.DataFrame,
         Dictionary mapping indices to tokens.
     """
     global LABEL_TO_ID, ID_TO_LABEL
-    if vocab is not None and (PAD_TOKEN not in vocab or UNK_TOKEN not in vocab):
-        raise ValueError('Both {} token and {} token must be in vocabulary.'.format(PAD_TOKEN, UNK_TOKEN))
+    if vocab is not None:
+        if PAD_TOKEN not in vocab or UNK_TOKEN not in vocab:
+            raise ValueError('Both {} token and {} token must be in vocabulary.'.format(PAD_TOKEN, UNK_TOKEN))
+        else:
+            vocab_size = len(vocab)
     def _process_data_helper(text):
         # Tokenize text data
         tokens = re.findall(r'\w+|[^\w\s]', re.sub(r'[|]{3}', '', text.strip().lower()))[:max_tokens]
