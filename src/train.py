@@ -249,7 +249,7 @@ if __name__ == "__main__":
         'trainable_embeddings': True
     }
 
-    model = DAN(**model_config)
+    model = DFN(**model_config)
     model.embeddings.assign(load_glove_embeddings(args.embeddings, args.embed_dim, reverse_vocab))
 
     train(model, optimizer, train_batches, validation_batches, args.num_epochs)
