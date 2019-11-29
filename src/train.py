@@ -220,7 +220,7 @@ if __name__ == "__main__":
     parser.add_argument('--dev', help='Path to dev data.', default=r'./data/dev.csv')
     parser.add_argument('--labels', help='Path to label dictionary.', default=r'./data/answers.json')
     parser.add_argument('--model', help='Model to use for QA task.', choices=('DAN', 'DFN', 'GRU'), type=str.upper, default='DAN')
-    parser.add_argument('--embeddings', help='Path to embeddings', default=r'./data/glove.6B/glove.6B.50d.txt')
+    parser.add_argument('--embeddings', help='Path to embeddings')
     parser.add_argument('--embed-dim', help='Size of embeddings', type=int, default=50)
     parser.add_argument('--batch-size', help='Size of training batches.', type=int, default=32)
     parser.add_argument('--vocab-size', help='Size of vocabulary to use.', type=int, default=15_000)
@@ -264,7 +264,9 @@ if __name__ == "__main__":
     else:
         model_config['hidden_dim'] = args.sequence_length if args.hidden_dim == -1 else args.hidden_dim
         model = GRU(**model_config)
-    model.embeddings.assign(load_glove_embeddings(args.embeddings, args.embed_dim, reverse_vocab))
+
+    if args.embeddings is not None:
+        model.embeddings.assign(load_glove_embeddings(args.embeddings, args.embed_dim, reverse_vocab))
 
     train_result = train(model, optimizer, train_batches, validation_batches, args.num_epochs)
     model, metrics = train_result['model'], train_result['metrics']

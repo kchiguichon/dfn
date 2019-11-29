@@ -124,4 +124,3 @@ class GRU(models.Model):
             logits = getattr(self, 'gru' + str(i+1))(logits, mask=sequence_mask)
         logits = self.classifier(logits)
         return logits
-
