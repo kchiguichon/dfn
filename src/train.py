@@ -262,7 +262,7 @@ if __name__ == "__main__":
         model_config['hidden_dim'] = 150 if args.hidden_dim == -1 else args.hidden_dim
         model = DFN(**model_config)
     else:
-        model_config['hidden_dim'] = args.embed_dim if args.hidden_dim == -1 else args.hidden_dim
+        model_config['hidden_dim'] = args.sequence_length if args.hidden_dim == -1 else args.hidden_dim
         model = GRU(**model_config)
     model.embeddings.assign(load_glove_embeddings(args.embeddings, args.embed_dim, reverse_vocab))
 
