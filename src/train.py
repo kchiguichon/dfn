@@ -1,168 +1,17 @@
-import re
 import os
 import json
-from tqdm import tqdm
 import argparse
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from tensorflow.keras import models, optimizers
+
+from tqdm import tqdm
 from typing import List, Dict
+from tensorflow.keras import models, optimizers
 
-from util.constants import PAD_TOKEN, UNK_TOKEN
 from models.neural_models import DAN, DFN, GRU
-
-LABEL_TO_ID = dict()
-ID_TO_LABEL = dict()
-
-def swap_key_values(dictionary):
-    return dict([(value, key) for key, value in dictionary.items()])
-
-def load_data(train_path, dev_path, labels_path):
-    global LABEL_TO_ID, ID_TO_LABEL
-    LABEL_TO_ID = json.load(open(labels_path, 'r', encoding='utf8'))
-    ID_TO_LABEL = swap_key_values(LABEL_TO_ID)
-    return {
-        'train' : pd.read_csv(open(train_path, 'r'), quotechar='"'),
-        'dev' : pd.read_csv(open(dev_path, 'r'), quotechar='"')
-    }
-
-def process_data(dataframe : pd.DataFrame, 
-                 vocab=None,
-                 vocab_size : int = 10_000, 
-                 max_tokens : int = 200, 
-                 max_token_size : int = 40) -> (tf.Tensor, tf.Tensor, dict, dict):
-    """
-    Will take a dataframe read from ``load_data`` and return indexed data, labels, and vocabulary tables
-    for that dataset.
-
-    Parameters
-    ---------- 
-    dataframe : ``pd.DataFrame``
-        A pandas dataframe containing data to be processed, and from which to build vocabulary.
-
-    vocab : ``dict``
-        (Optional) Dictionary mapping tokens to indices. 
-
-    vocab_size : ``int``
-        (Optional) If vocab is ``None`` then this denotes the maximum size of the vocabulary 
-        including padding and unknown tokens.
-
-    max_tokens : ``int``
-        (Optional) Maximum number of tokens (aka. words) per sequence. Sequences will be padded to max_tokens if
-        their length is less than ``max_tokens``.
-
-    max_token_size : ``int``
-        (Optional) Maximum size of an individual token (i.e. how many characters in a token/word).
-
-    Returns:
-    --------
-    data : ``tf.Tensor``
-        Tensor containing indexed sequences of tokens.
-
-    labels : ``tf.Tensor``
-        Tensor containing label for each sequence in ``data``.
-
-    vocab : ``dict``
-        Dictionary mapping tokens to indices.
-
-    reverse_vocab : ``dict``
-        Dictionary mapping indices to tokens.
-    """
-    global LABEL_TO_ID, ID_TO_LABEL
-    if vocab is not None:
-        if PAD_TOKEN not in vocab or UNK_TOKEN not in vocab:
-            raise ValueError('Both {} token and {} token must be in vocabulary.'.format(PAD_TOKEN, UNK_TOKEN))
-        else:
-            vocab_size = len(vocab)
-    def _process_data_helper(text):
-        # Tokenize text data
-        tokens = re.findall(r'\w+|[^\w\s]', re.sub(r'[|]{3}', '', text.strip().lower()))[:max_tokens]
-        # Padding
-        tokens += [PAD_TOKEN] * (max_tokens - len(tokens))
-        return np.asarray(tokens).astype('<U{}'.format(max_token_size))
-    # Tokenize data and labels
-    data = tf.convert_to_tensor(dataframe['Text'].apply(_process_data_helper))
-    labels = tf.convert_to_tensor(dataframe['Answer'].apply(lambda x: np.array(re.sub(r'\s+', '_', x))))
-    if vocab is None:
-        # Build vocab
-        counts = np.unique(data, return_counts=True)
-        counts = [x[counts[0] != PAD_TOKEN.encode('utf8')] for x in counts]
-        top_words = counts[0][np.argsort(counts[1])[:vocab_size-2:-1]]
-        top_words = [byte_string.decode('utf8') for byte_string in top_words]
-        vocab = dict(zip([PAD_TOKEN, UNK_TOKEN]+top_words, range(min(vocab_size, len(top_words)+2))))
-        reverse_vocab = dict(zip(range(min(vocab_size, len(top_words)+2)), [PAD_TOKEN, UNK_TOKEN]+top_words))
-    else:
-        reverse_vocab = swap_key_values(vocab)
-    # Map tokens to indices
-    def index_lookup(token):
-        token = token.decode('utf8')
-        return vocab[token] if token in vocab else vocab[UNK_TOKEN]
-    data = tf.keras.backend.map_fn(np.vectorize(index_lookup), data, dtype=tf.int32)
-    labels = tf.keras.backend.map_fn(np.vectorize(lambda x: LABEL_TO_ID[x.decode('utf8')]), labels, dtype=tf.int64)
-    return data, labels, vocab, reverse_vocab
-
-def generate_batches(X, Y, batch_size):
-    return list(zip(*[[data[i:i+batch_size] for i in range(0, len(data), batch_size)] for data in [X,Y]]))
-
-def load_glove_embeddings(embeddings_txt_file: str,
-                          embedding_dim: int,
-                          vocab_id_to_token: Dict[int, str]) -> np.ndarray:
-    """
-    Given a vocabulary (mapping from index to token), this function builds
-    an embedding matrix of vocabulary size in which ith row vector is an
-    entry from pretrained embeddings (loaded from embeddings_txt_file).
-    """
-    tokens_to_keep = set(vocab_id_to_token.values())
-    vocab_size = len(vocab_id_to_token)
-
-    embeddings = {}
-    print("\nReading pretrained embedding file.")
-    with open(embeddings_txt_file, encoding='utf8') as file:
-        for line in tqdm(file):
-            line = str(line).strip()
-            token = line.split(' ', 1)[0]
-            if not token in tokens_to_keep:
-                continue
-            fields = line.rstrip().split(' ')
-            if len(fields) - 1 != embedding_dim:
-                raise Exception(f"Pretrained embedding vector and expected "
-                                f"embedding_dim do not match for {token}.")
-                continue
-            vector = np.asarray(fields[1:], dtype='float32')
-            embeddings[token] = vector
-
-    # Estimate mean and std variation in embeddings and initialize it random normally with it
-    all_embeddings = np.asarray(list(embeddings.values()))
-    embeddings_mean = float(np.mean(all_embeddings))
-    embeddings_std = float(np.std(all_embeddings))
-
-    embedding_matrix = np.random.normal(embeddings_mean, embeddings_std,
-                                        (vocab_size, embedding_dim))
-    embedding_matrix = np.asarray(embedding_matrix, dtype='float32')
-
-    for idx, token in vocab_id_to_token.items():
-        if token in embeddings:
-            embedding_matrix[idx] = embeddings[token]
-
-    return embedding_matrix
-
-def save_model(model, config, vocab, serialization_dir):
-    config['model_type'] = model.__class__.__name__
-    json.dump(config, open(os.path.join(serialization_dir, f'config.json'), 'w', encoding='utf8'))
-    json.dump(vocab, open(os.path.join(serialization_dir, f'vocab.json'), 'w', encoding='utf8'))
-    model.save_weights(os.path.join(serialization_dir, f'model.ckpt'))
-
-def load_model(serialization_dir):
-    config = json.load(open(os.path.join(serialization_dir, f'config.json'), 'r', encoding='utf8'))
-    vocab = json.load(open(os.path.join(serialization_dir, f'vocab.json'), 'r', encoding='utf8'))
-    reverse_vocab = swap_key_values(vocab)
-    model_type = config['model_type']
-    del config['model_type']
-    import models.neural_models as neural_models
-    model = getattr(neural_models, model_type)(**config)
-    model.load_weights(os.path.join(serialization_dir, f'model.ckpt'))
-    return model, config, vocab, reverse_vocab
+from util.model_util import save_model, load_model
+from data import swap_key_values, load_data, load_glove_embeddings, process_data, generate_batches
 
 def train(model: models.Model,
           optimizer: optimizers.Optimizer,
@@ -172,7 +21,6 @@ def train(model: models.Model,
           serialization_dir: str = None,
           config: Dict = None,
           vocab: Dict = None) -> tf.keras.Model:
-    global LABEL_TO_ID
     best_epoch_validation_accuracy = float("-inf")
     best_epoch_validation_loss = float("inf")
     regularization_lambda = 1e-5
@@ -251,7 +99,7 @@ if __name__ == "__main__":
     parser.add_argument('--hidden-dim', help='Size of hidden representation vector.', type=int, default=-1)
 
     args = parser.parse_args()
-    data = load_data(args.train, args.dev, args.labels)
+    data, label_to_id = load_data(args.train, args.dev, args.labels)
     train_data = data['train']
     validation_data = data['dev']
     vocab = None
@@ -259,10 +107,21 @@ if __name__ == "__main__":
     if args.pretrained_model is not None:
         model, model_config, vocab, reverse_vocab = load_model(args.pretrained_model)
     print('\nLoading training data...')
-    train_X, train_Y, vocab, reverse_vocab = process_data(train_data, vocab=vocab, vocab_size=args.vocab_size, max_tokens=args.sequence_length)
+    train_X, train_Y, vocab, reverse_vocab = process_data(
+        train_data, 
+        label_to_id, 
+        vocab=vocab, 
+        vocab_size=args.vocab_size, 
+        max_tokens=args.sequence_length
+    )
     print('Training data loaded.')
     print('\nLoading validation data...')
-    validation_X, validation_Y, _, _ = process_data(validation_data, vocab=vocab, max_tokens=args.sequence_length)
+    validation_X, validation_Y, _, _ = process_data(
+        validation_data, 
+        label_to_id, 
+        vocab=vocab, 
+        max_tokens=args.sequence_length
+    )
     print('Validation data loaded.')
     print('\nGenerating batches...')
     train_batches = generate_batches(train_X, train_Y, args.batch_size)
@@ -275,7 +134,7 @@ if __name__ == "__main__":
         model_config = {
             'vocab_size': args.vocab_size, 
             'embedding_dim': args.embed_dim, 
-            'output_dim': len(LABEL_TO_ID), 
+            'output_dim': len(label_to_id), 
             'num_layers': args.num_layers, 
             'dropout': 0.2,
             'trainable_embeddings': True
