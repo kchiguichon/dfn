@@ -147,12 +147,31 @@ def load_glove_embeddings(embeddings_txt_file: str,
 
     return embedding_matrix
 
+def save_model(model, config, vocab, serialization_dir):
+    config['model_type'] = model.__class__.__name__
+    json.dump(config, open(os.path.join(serialization_dir, f'config.json'), 'w', encoding='utf8'))
+    json.dump(vocab, open(os.path.join(serialization_dir, f'vocab.json'), 'w', encoding='utf8'))
+    model.save_weights(os.path.join(serialization_dir, f'model.ckpt'))
+
+def load_model(serialization_dir):
+    config = json.load(open(os.path.join(serialization_dir, f'config.json'), 'r', encoding='utf8'))
+    vocab = json.load(open(os.path.join(serialization_dir, f'vocab.json'), 'r', encoding='utf8'))
+    reverse_vocab = swap_key_values(vocab)
+    model_type = config['model_type']
+    del config['model_type']
+    import models.neural_models as neural_models
+    model = getattr(neural_models, model_type)(**config)
+    model.load_weights(os.path.join(serialization_dir, f'model.ckpt'))
+    return model, config, vocab, reverse_vocab
+
 def train(model: models.Model,
           optimizer: optimizers.Optimizer,
           train_batches: List,
           validation_batches: List,
           num_epochs: int,
-          serialization_dir: str = None) -> tf.keras.Model:
+          serialization_dir: str = None,
+          config: Dict = None,
+          vocab: Dict = None) -> tf.keras.Model:
     global LABEL_TO_ID
     best_epoch_validation_accuracy = float("-inf")
     best_epoch_validation_loss = float("inf")
@@ -199,7 +218,7 @@ def train(model: models.Model,
             if serialization_dir is not None:
                 print("Model with best validation accuracy so far: %.2f. Saving the model."
                     % (validation_accuracy))
-                model.save_weights(os.path.join(serialization_dir, f'model.ckpt'))
+                save_model(model, config, vocab, serialization_dir)
             best_epoch_validation_loss = average_validation_loss
             best_epoch_validation_accuracy = validation_accuracy
 
@@ -219,7 +238,9 @@ if __name__ == "__main__":
     parser.add_argument('--train', help='Path to train data.', default=r'./data/train.csv')
     parser.add_argument('--dev', help='Path to dev data.', default=r'./data/dev.csv')
     parser.add_argument('--labels', help='Path to label dictionary.', default=r'./data/answers.json')
-    parser.add_argument('--model', help='Model to use for QA task.', choices=('DAN', 'DFN', 'GRU'), type=str.upper, default='DAN')
+    parser.add_argument('--pretrained-model', help='Path to pretrained model directory')
+    parser.add_argument('--checkpoint-path', help='Path to save model checkpoints.', default=r'./serialization_dirs/default/')
+    parser.add_argument('--model-type', help='Model to use for QA task.', choices=('DAN', 'DFN', 'GRU'), type=str.upper, default='DAN')
     parser.add_argument('--embeddings', help='Path to embeddings')
     parser.add_argument('--embed-dim', help='Size of embeddings', type=int, default=50)
     parser.add_argument('--batch-size', help='Size of training batches.', type=int, default=32)
@@ -233,8 +254,12 @@ if __name__ == "__main__":
     data = load_data(args.train, args.dev, args.labels)
     train_data = data['train']
     validation_data = data['dev']
+    vocab = None
+    model = None
+    if args.pretrained_model is not None:
+        model, model_config, vocab, reverse_vocab = load_model(args.pretrained_model)
     print('\nLoading training data...')
-    train_X, train_Y, vocab, reverse_vocab = process_data(train_data, vocab_size=args.vocab_size, max_tokens=args.sequence_length)
+    train_X, train_Y, vocab, reverse_vocab = process_data(train_data, vocab=vocab, vocab_size=args.vocab_size, max_tokens=args.sequence_length)
     print('Training data loaded.')
     print('\nLoading validation data...')
     validation_X, validation_Y, _, _ = process_data(validation_data, vocab=vocab, max_tokens=args.sequence_length)
@@ -245,28 +270,42 @@ if __name__ == "__main__":
     print('Batches finished generating.')
 
     optimizer = optimizers.Adam()
+    
+    if model is None:
+        model_config = {
+            'vocab_size': args.vocab_size, 
+            'embedding_dim': args.embed_dim, 
+            'output_dim': len(LABEL_TO_ID), 
+            'num_layers': args.num_layers, 
+            'dropout': 0.2,
+            'trainable_embeddings': True
+        }
 
-    model_config = {
-        'vocab_size': args.vocab_size, 
-        'embedding_dim': args.embed_dim, 
-        'output_dim': len(LABEL_TO_ID), 
-        'num_layers': args.num_layers, 
-        'dropout': 0.2,
-        'trainable_embeddings': True
-    }
+        if args.model_type == 'DAN':
+            model_config['hidden_dim'] = args.embed_dim if args.hidden_dim == -1 else args.hidden_dim
+            model = DAN(**model_config)
+        elif args.model_type == 'DFN':
+            model_config['hidden_dim'] = 150 if args.hidden_dim == -1 else args.hidden_dim
+            model = DFN(**model_config)
+        else:
+            model_config['hidden_dim'] = args.sequence_length if args.hidden_dim == -1 else args.hidden_dim
+            model = GRU(**model_config)
 
-    if args.model == 'DAN':
-        model_config['hidden_dim'] = args.embed_dim if args.hidden_dim == -1 else args.hidden_dim
-        model = DAN(**model_config)
-    elif args.model == 'DFN':
-        model_config['hidden_dim'] = 150 if args.hidden_dim == -1 else args.hidden_dim
-        model = DFN(**model_config)
-    else:
-        model_config['hidden_dim'] = args.sequence_length if args.hidden_dim == -1 else args.hidden_dim
-        model = GRU(**model_config)
-
-    if args.embeddings is not None:
-        model.embeddings.assign(load_glove_embeddings(args.embeddings, args.embed_dim, reverse_vocab))
-
-    train_result = train(model, optimizer, train_batches, validation_batches, args.num_epochs)
+        if args.embeddings is not None:
+            model.embeddings.assign(load_glove_embeddings(args.embeddings, args.embed_dim, reverse_vocab))
+    
+    if not os.path.exists(args.checkpoint_path):
+        os.makedirs(args.checkpoint_path)
+    train_result = train(
+        model, 
+        optimizer, 
+        train_batches, 
+        validation_batches, 
+        args.num_epochs, 
+        args.checkpoint_path, 
+        model_config, 
+        vocab
+    )
     model, metrics = train_result['model'], train_result['metrics']
+    json.dump(metrics, open(os.path.join(args.checkpoint_path, f'metrics.json'), 'w', encoding='utf8'))
+    

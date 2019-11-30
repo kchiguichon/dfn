@@ -5,3 +5,4 @@ nlp_project_proposal*
 *.tar.gz
 **_pycache__/
 glove.6B/
+serialization_dirs/
