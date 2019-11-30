@@ -2,8 +2,9 @@ import pandas as pd
 import argparse
 from pathlib import Path
 
-def read_data(filepath):
-    return pd.read_csv(open(filepath, 'r'), quotechar='"')
+def read_data(filepath, category = None):
+    df = pd.read_csv(open(filepath, 'r'), quotechar='"')
+    return df if category is None else df.loc[df['Category'] == category]
 
 def partition_data(df):
     partitions = {'train': None, 'dev' : None, 'test' : None}
@@ -26,12 +27,13 @@ if __name__ == "__main__":
     """)
 
     parser.add_argument('--questions-path', help='Path to questions.csv file.')
-    parser.add_argument('--save-directory', help='Save directory to place partitions in.')
+    parser.add_argument('--category', help='Category of questions. If not provided all categories will be considered.')
+    parser.add_argument('--save-dir', help='Save directory to place partitions in.')
     args = parser.parse_args()
 
-    data = read_data(args.questions_path)
+    data = read_data(args.questions_path, category=args.category)
     partitions = partition_data(data)
-    save_directory = args.save_directory.strip()
+    save_directory = args.save_dir.strip()
     save_directory =  save_directory if save_directory[-1] in {'/', '\\'} else save_directory + '\\'
     save_partitions(partitions, save_directory)
     
