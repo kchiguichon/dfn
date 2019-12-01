@@ -54,7 +54,7 @@ TODO: Explain train and predict scripts.
 
 An example command to start training the model.
 ```
-python ./src/train.py --train ./data/train.csv --dev ./data/dev.csv --labels ./data/answers.json --model dan --embeddings ./data/glove.6B.50d.txt --embed-dim 50 --num-layers 4
+python ./src/train.py --train ./data/train.csv --dev ./data/dev.csv --labels ./data/answers.json --model-type dan --embeddings ./data/glove.6B.50d.txt --embed-dim 50 --num-layers 4 --checkpoint-path ./serialization_dirs/dan --num-epochs 20
 ```
 
 #### Predict with model

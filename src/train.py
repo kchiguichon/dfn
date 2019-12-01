@@ -14,6 +14,7 @@
 
 import os
 import json
+import shutil
 import argparse
 import numpy as np
 import pandas as pd
@@ -35,6 +36,8 @@ def train(model: models.Model,
           serialization_dir: str = None,
           config: Dict = None,
           vocab: Dict = None) -> tf.keras.Model:
+    tensorboard_logs_path = os.path.join(serialization_dir, f'tensorboard_logs')
+    tensorboard_writer = tf.summary.create_file_writer(tensorboard_logs_path)
     best_epoch_validation_accuracy = float("-inf")
     best_epoch_validation_loss = float("inf")
     regularization_lambda = 1e-5
@@ -83,6 +86,13 @@ def train(model: models.Model,
                 save_model(model, config, vocab, serialization_dir)
             best_epoch_validation_loss = average_validation_loss
             best_epoch_validation_accuracy = validation_accuracy
+
+        with tensorboard_writer.as_default():
+            tf.summary.scalar("loss/training", average_training_loss, step=epoch)
+            tf.summary.scalar("loss/validation", average_validation_loss, step=epoch)
+            tf.summary.scalar("accuracy/training", training_accuracy, step=epoch)
+            tf.summary.scalar("accuracy/validation", validation_accuracy, step=epoch)
+        tensorboard_writer.flush()
 
     metrics = {"training_loss": float(average_training_loss),
                "validation_loss": float(average_validation_loss),
@@ -169,6 +179,8 @@ if __name__ == "__main__":
     
     if not os.path.exists(args.checkpoint_path):
         os.makedirs(args.checkpoint_path)
+    elif os.path.exists(os.path.join(args.checkpoint_path, f'tensorboard_logs')):
+        shutil.rmtree(os.path.join(args.checkpoint_path, f'tensorboard_logs'))
     train_result = train(
         model, 
         optimizer, 
