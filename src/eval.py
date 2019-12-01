@@ -33,8 +33,8 @@ def eval(model: models.Model, eval_batches: List) -> tf.keras.Model:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="""Script to train model on data.""")
-    parser.add_argument('model', help='Path to pretrained model directory')
+    parser = argparse.ArgumentParser(description="""Script to evaluate a trained model on data.""")
+    parser.add_argument('model', help='Path to trained model directory')
     parser.add_argument('--test', help='Path to evaluation data.', default=r'./data/test.csv')
     parser.add_argument('--labels', help='Path to label dictionary.', default=r'./data/answers.json')
 
@@ -47,8 +47,11 @@ if __name__ == "__main__":
         label_to_id, 
         vocab=vocab, 
         vocab_size=model_config['vocab_size']
+        # TODO: Sequence should be stored in model config as well so that evaluation conditions match 
+        # model training conditions.
     )
     print('Test data loaded.')
-    batches = generate_batches(test_X, test_Y, 32)
+    batch_size = 32
+    batches = generate_batches(test_X, test_Y, batch_size)
     print('Batches finished generating.')
     train_result = eval(model, batches)

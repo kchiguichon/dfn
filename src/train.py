@@ -167,4 +167,3 @@ if __name__ == "__main__":
     )
     model, metrics = train_result['model'], train_result['metrics']
     json.dump(metrics, open(os.path.join(args.checkpoint_path, f'metrics.json'), 'w', encoding='utf8'))
-    
