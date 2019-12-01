@@ -2,7 +2,11 @@ This file is best viewed in Markdown reader (eg. https://jbt.github.io/markdown-
 
 # Overview
 
-TODO: An overview of the project.
+This repo contains the implementation for a new type of deep compositional network. Inspiration and motivation was from the work done by Iyyer et al. in their paper "Deep Unordered Composition Rivals Syntactic Methods for Text Classification" (https://www.aclweb.org/anthology/P15-1162/). 
+
+This work provides a new aggregation layer which aims at capturing sequential information. Using a different representation for word vectors and subsequently also computing a different representation for sequences.
+
+While due to computing fourier transforms on input data the model is slower than a typical DAN implementation it is still much faster to train that heavier RNN based models while also converging faster than DAN and outperforming it in accuracy.
 
 
 # Installation
