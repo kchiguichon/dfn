@@ -33,8 +33,8 @@ class DAN(models.Model):
         self.dropout_prob = dropout
         self.embeddings = tf.Variable(tf.random.normal([vocab_size, embedding_dim]), trainable=trainable_embeddings)
         for i in range(self.num_layers):
-            name = 'dense' + str(i+1)
-            setattr(self, name, layers.Dense(hidden_dim, activation='tanh', name=name))
+            dense_name = 'dense' + str(i+1)
+            setattr(self, dense_name, layers.Dense(hidden_dim, activation='tanh', name=dense_name))
         self.classifier = layers.Dense(output_dim)
 
     def call(self, batch_data: tf.Tensor, training=False) -> tf.Tensor:
@@ -82,9 +82,8 @@ class DFN(models.Model):
 
         self.embeddings = tf.Variable(tf.random.normal([vocab_size, embedding_dim]), trainable=trainable_embeddings)
         for i in range(self.num_layers):
-            dense_name, batch_norm_name = 'dense' + str(i+1), 'batch_norm' + str(i+1)
+            dense_name = 'dense' + str(i+1)
             setattr(self, dense_name, layers.Dense(hidden_dim, activation='swish', name=dense_name))
-            setattr(self, batch_norm_name, layers.BatchNormalization(name=batch_norm_name))
         self.classifier = layers.Dense(output_dim)
 
     def call(self, batch_data: tf.Tensor, training=False) -> tf.Tensor:
@@ -107,7 +106,6 @@ class DFN(models.Model):
         logits = tf.concat([x, y], -1)
         for i in range(self.num_layers):
             logits = getattr(self, 'dense' + str(i+1))(logits)
-            logits = getattr(self, 'batch_norm' + str(i+1))(logits, training)
         logits = self.classifier(logits)
         return logits
 

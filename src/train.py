@@ -40,7 +40,12 @@ def train(model: models.Model,
     tensorboard_writer = tf.summary.create_file_writer(tensorboard_logs_path)
     best_epoch_validation_accuracy = float("-inf")
     best_epoch_validation_loss = float("inf")
-    regularization_lambda = 1e-5
+    # DFN performs better with a higher regularization lambda
+    regularization_lambda = 1e-5 if model.__class__.__name__ != 'DFN' else 1e-3
+    training_loss_plot = []
+    validation_loss_plot = []
+    training_accuracy_plot = []
+    validation_accuracy_plot = []
     for epoch in range(num_epochs):
         print(f"\nEpoch {epoch}")
         total_training_loss = 0
@@ -50,7 +55,7 @@ def train(model: models.Model,
             with tf.GradientTape() as tape:
                 logits = model(batch_inputs, training=True)
                 loss_value = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(batch_labels, logits))
-                regularization = regularization_lambda * tf.reduce_sum([tf.nn.l2_loss(x) for x in model.weights])
+                loss_value += regularization_lambda * tf.reduce_sum([tf.nn.l2_loss(x) for x in model.weights])
                 grads = tape.gradient(loss_value, model.trainable_variables)
             optimizer.apply_gradients(zip(grads, model.trainable_variables))
             total_training_loss += loss_value
@@ -88,22 +93,35 @@ def train(model: models.Model,
             best_epoch_validation_accuracy = validation_accuracy
 
         with tensorboard_writer.as_default():
-            tf.summary.scalar("loss/training", average_training_loss, step=epoch)
-            tf.summary.scalar("loss/validation", average_validation_loss, step=epoch)
-            tf.summary.scalar("accuracy/training", training_accuracy, step=epoch)
-            tf.summary.scalar("accuracy/validation", validation_accuracy, step=epoch)
+            tf.summary.scalar("{} loss/training".format(model.__class__.__name__), average_training_loss, step=epoch)
+            tf.summary.scalar("{} loss/validation".format(model.__class__.__name__), average_validation_loss, step=epoch)
+            tf.summary.scalar("{} accuracy/training".format(model.__class__.__name__), training_accuracy, step=epoch)
+            tf.summary.scalar("{} accuracy/validation".format(model.__class__.__name__), validation_accuracy, step=epoch)
         tensorboard_writer.flush()
+        training_loss_plot.append(float(average_training_loss))
+        training_accuracy_plot.append(float(training_accuracy))
+        validation_loss_plot.append(float(average_validation_loss))
+        validation_accuracy_plot.append(float(validation_accuracy))
 
-    metrics = {"training_loss": float(average_training_loss),
-               "validation_loss": float(average_validation_loss),
-               "training_accuracy": float(training_accuracy),
-               "best_epoch_validation_accuracy": float(best_epoch_validation_accuracy),
-               "best_epoch_validation_loss": float(best_epoch_validation_loss)}
+    metrics = {
+        "training_loss": float(average_training_loss),
+        "validation_loss": float(average_validation_loss),
+        "training_accuracy": float(training_accuracy),
+        "best_epoch_validation_accuracy": float(best_epoch_validation_accuracy),
+        "best_epoch_validation_loss": float(best_epoch_validation_loss)
+    }
+
+    plot_data = {
+        'training_loss' : training_loss_plot,
+        'training_accuracy' : training_accuracy_plot,
+        'validation_loss' : validation_loss_plot,
+        'validation_accuracy' : validation_accuracy_plot
+    }
 
     print("Best epoch validation accuracy: %.4f, validation loss: %.4f"
           %(best_epoch_validation_accuracy, best_epoch_validation_loss))
 
-    return {"model": model, "metrics": metrics}
+    return {"model": model, "metrics": metrics, 'plot_data' : plot_data}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="""Script to train model on data.""")
@@ -191,5 +209,6 @@ if __name__ == "__main__":
         model_config, 
         vocab
     )
-    model, metrics = train_result['model'], train_result['metrics']
+    model, metrics, plot_data = train_result['model'], train_result['metrics'], train_result['plot_data']
     json.dump(metrics, open(os.path.join(args.checkpoint_path, f'metrics.json'), 'w', encoding='utf8'))
+    json.dump(plot_data, open(os.path.join(args.checkpoint_path, f'plot_data.json'), 'w', encoding='utf8'))
