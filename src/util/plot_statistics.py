@@ -17,7 +17,7 @@ def make_plots(plot_paths):
         for j in range(len(plot_data_list)):
             axis.plot(range(len(plot_data_list[j][plot_categories[i]])), plot_data_list[j][plot_categories[i]], 'C{}-'.format(j), label=os.path.dirname(plot_paths[j]).split(r'/')[-1])
         axis.legend(loc='best')
-    plt.subplots_adjust(hspace=0.4)
+    plt.subplots_adjust(left=0.06, bottom=0.08, right=0.95, top=0.95, wspace=0.14, hspace=0.26)
     plt.show()
 
 
