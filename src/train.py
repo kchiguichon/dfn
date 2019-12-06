@@ -180,7 +180,8 @@ if __name__ == "__main__":
             'output_dim': len(label_to_id), 
             'num_layers': args.num_layers, 
             'dropout': 0.2,
-            'trainable_embeddings': True
+            'trainable_embeddings': True,
+            'transform_sequences' : args.transform_sequences
         }
 
         if args.model_type == 'DAN':
