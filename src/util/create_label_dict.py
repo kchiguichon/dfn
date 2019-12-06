@@ -28,7 +28,9 @@ def build_label_dict(questions_path, category = None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='A simple program to create label dictionary')
+    parser = argparse.ArgumentParser(description="""
+        A simple program to create label dictionary used for converting label to ID and vice versa.
+    """)
     parser.add_argument('--questions-path', help='Path to question dataset.', default='.\\data\\questions.csv')
     parser.add_argument('--category', help='Category of questions. If not provided all categories will be considered.')
     parser.add_argument('--output-path', help='Path to save labels dictionary to', default='.\\data\\answers.json')

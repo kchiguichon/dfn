@@ -27,7 +27,7 @@ class DAN(models.Model):
                  num_layers: int,
                  hidden_dim: int, 
                  dropout: float = 0.2,
-                 trainable_embeddings: bool = True):
+                 trainable_embeddings: bool = True, **kwargs):
         super(DAN, self).__init__()
         self.num_layers = num_layers
         self.dropout_prob = dropout
@@ -71,10 +71,12 @@ class DFN(models.Model):
                  num_layers: int,
                  hidden_dim: int, 
                  dropout: float = 0.2,
-                 trainable_embeddings: bool = True):
+                 trainable_embeddings: bool = True,
+                 transform_sequences = False, **kwargs):
         super(DFN, self).__init__()
         self.num_layers = num_layers
         self.dropout_prob = dropout
+        self.transform_sequences = transform_sequences
 
         def swish(inputs):
             return inputs * tf.math.sigmoid(0.7 * inputs)
@@ -94,12 +96,18 @@ class DFN(models.Model):
             dropout_mask = tf.cast(tf.random.uniform(batch_data.get_shape()) >= self.dropout_prob, dtype=tf.float32)
             logits *= tf.expand_dims(dropout_mask, -1)
 
+        # Convert to fourier space
         x = tf.signal.rfft(logits)
-        y = tf.transpose(x, [0, 2, 1])
+        if self.transform_sequences:
+            y = tf.signal.rfft(tf.transpose(logits, [0, 2, 1]))
+        else:
+            y = tf.transpose(x, [0, 2, 1])
 
+        # Aggregate
         x = tf.reduce_sum(x, 1)
         y = tf.reduce_sum(y, 1)
 
+        # Reverse transform
         x = tf.signal.irfft(x)
         y = tf.signal.irfft(y)
 
@@ -117,7 +125,7 @@ class GRU(models.Model):
                  num_layers: int,
                  hidden_dim:int, 
                  dropout: float = 0.2,
-                 trainable_embeddings: bool = True):
+                 trainable_embeddings: bool = True, **kwargs):
         super(GRU, self).__init__()
         self.num_layers = num_layers
         self.embeddings = tf.Variable(tf.random.normal([vocab_size, embedding_dim]), trainable=trainable_embeddings)

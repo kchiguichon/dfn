@@ -139,6 +139,7 @@ if __name__ == "__main__":
     parser.add_argument('--num-epochs', help='Number of epochs.', type=int, default=10)
     parser.add_argument('--num-layers', help='Number of layers.', type=int, default=4)
     parser.add_argument('--hidden-dim', help='Size of hidden representation vector.', type=int, default=-1)
+    parser.add_argument('--transform-sequences', help='For DFN, determines if FFT is computed over sequences along with tokens.', default=False, action='store_true')
 
     args = parser.parse_args()
     data, label_to_id = load_data(args.train, args.dev, args.labels)

@@ -61,8 +61,8 @@ if __name__ == "__main__":
         label_to_id, 
         vocab=vocab, 
         vocab_size=model_config['vocab_size']
-        # TODO: Sequence should be stored in model config as well so that evaluation conditions match 
-        # model training conditions.
+        # TODO: Sequence length should be stored in model config as well so that evaluation conditions 
+        # match model training conditions.
     )
     print('Test data loaded.')
     batch_size = 32
