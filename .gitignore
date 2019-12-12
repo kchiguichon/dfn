@@ -6,3 +6,5 @@ nlp_project_proposal*
 **_pycache__/
 glove.6B/
 serialization_dirs/
+**.pptx
+**.pdf
