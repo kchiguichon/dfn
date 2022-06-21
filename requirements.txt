@@ -1,5 +1,5 @@
 tqdm==4.36.1
-numpy==1.17.2
+numpy==1.22.0
 tensorboard==2.0.0
 tensorboardX==1.9
 tensorflow==2.0.3
